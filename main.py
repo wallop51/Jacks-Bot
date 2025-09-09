@@ -173,15 +173,20 @@ async def ready(interaction: discord.Interaction):
         await interaction.response.send_message(f"Only {pregame.master.mention} can start the game.", ephemeral=True)
         return
 
-    if len(pregame.players < 3) or len(pregame.players) > 4:
+    if len(pregame.players) < 3 or len(pregame.players) > 4:
         await interaction.response.send_message("Jacks can only be played with 3 or 4 players.", ephemeral=True)
         return
+
+    await interaction.response.send_message(f"Game started! Check your DMs for your hand.")
 
     #Start game
     game = Game(pregame.players)
     await game.send_hands_to_players()
+    await game.start_passing_phase()
 
-    await interaction.response.send_message(f"Game started! Check your DMs for your hand.")
+
+    # TODO store active game
+    # active_games[channel_id] = game
 
     del active_pregames[channel_id]
 bot.run(TOKEN)
