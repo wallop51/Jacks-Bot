@@ -133,3 +133,65 @@ class ConfirmPassingButton(discord.ui.Button):
         )
 
         await interaction.response.edit_message(embed=embed, view=view)
+
+
+class CardPlayView(discord.ui.View):
+    def __init__(self, game, player, valid_cards):
+        super().__init__(timeout=300)  # 5 minute timeout
+        self.game = game
+        self.player = player
+        self.valid_cards = valid_cards
+
+        # Add dropdown for card selection
+        self.add_item(CardPlayDropdown(valid_cards))
+
+    async def on_timeout(self):
+        # Disable all items when timeout
+        for item in self.children:
+            item.disabled = True
+
+
+class CardPlayDropdown(discord.ui.Select):
+    def __init__(self, valid_cards):
+        self.valid_cards = valid_cards
+
+        # Create options for each valid card
+        options = []
+        for i, card in enumerate(valid_cards):
+            card_display = format_card_emoji(card)
+            options.append(discord.SelectOption(
+                label=card_display,
+                value=str(i),
+                description="Click to play this card"
+            ))
+
+        super().__init__(
+            placeholder="Choose a card to play...",
+            min_values=1,
+            max_values=1,
+            options=options
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        view = self.view
+
+        # Get selected card
+        selected_index = int(self.values[0])
+        selected_card = view.valid_cards[selected_index]
+
+        # Disable the view immediately to prevent double-plays
+        for item in view.children:
+            item.disabled = True
+
+        # Show confirmation
+        embed = discord.Embed(
+            title="Card Played!",
+            description=f"You played: {format_card_emoji(selected_card)}",
+            color=discord.Color.green()
+        )
+        embed.add_field(name="Status", value="Waiting for other players...", inline=False)
+
+        await interaction.response.edit_message(embed=embed, view=view)
+
+        # Process the card play
+        await view.game.play_card(view.player, selected_card)
