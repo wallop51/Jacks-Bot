@@ -1,6 +1,7 @@
 import logging
 import random
 import views
+from card_format import *
 
 import discord
 from discord import Member
@@ -81,6 +82,7 @@ class Game:
             await self.send_passing_request(player)
 
     async def send_passing_request(self, player):
+        """Send passing request with emoji formatting"""
         sorted_hand = sorted(player.hand)
 
         embed = discord.Embed(
@@ -89,14 +91,10 @@ class Game:
             color=discord.Color.orange()
         )
 
-        # Add hand display
-        hand_text = ""
-        for i, card in enumerate(sorted_hand):
-            hand_text += f"{i + 1}. {card}\n"
+        hand_text = format_card_list(sorted_hand)
         embed.add_field(name="Your Hand", value=hand_text, inline=False)
 
         try:
-            # Create view with card selection (we'll need to create this)
             view = views.CardPassingView(self, player, sorted_hand)
             await player.discord_user.send(embed=embed, view=view)
         except discord.Forbidden:
@@ -123,7 +121,7 @@ class Game:
             await self.complete_passing_phase()
 
     async def complete_passing_phase(self):
-        #Give players their received cards after everyone has passed
+        # Give players their received cards after everyone has passed
         # Distribute received cards
         for i, player in enumerate(self.players):
             previous_index = (i - 1) % len(self.players)
@@ -140,16 +138,7 @@ class Game:
             received_cards = self.passed_cards.get(previous_player, [])
 
             sorted_hand = sorted(player.hand)
-
-            # Create hand text with received cards bolded
-            hand_parts = []
-            for card in sorted_hand:
-                if card in received_cards:
-                    hand_parts.append(f"**{card}**")  # Bold received cards
-                else:
-                    hand_parts.append(str(card))
-
-            hand_text = ", ".join(hand_parts)
+            hand_text = format_card_list(sorted_hand, passed_cards=received_cards)
 
             embed = discord.Embed(
                 title="Your Updated Hand",
@@ -171,10 +160,9 @@ class Game:
             player.hand = self.deck[i * hand_size:(i + 1) * hand_size]
 
     async def send_hands_to_players(self):
-        #DM players hands
         for player in self.players:
             sorted_hand = sorted(player.hand)
-            hand_text = ", ".join(str(card) for card in sorted_hand)
+            hand_text = format_card_list(sorted_hand)
 
             embed = discord.Embed(
                 title="Your Hand",
@@ -192,5 +180,6 @@ class Game:
     def show_hands(self):
         for player in self.players:
             sorted_hand = sorted(player.hand)
+            hand_display = format_card_list(sorted_hand)
             print(f"\n{player.name}'s hand:")
-            print(", ".join(map(str, sorted_hand)))
+            print(hand_display)

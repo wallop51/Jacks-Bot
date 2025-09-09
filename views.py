@@ -1,7 +1,9 @@
 import discord
 import logging
+from card_format import format_card_emoji, format_card_list
 
 LOGGER = logging.getLogger(__name__)
+
 
 class CreateLobbyView(discord.ui.View):
     def __init__(self, pregame):
@@ -39,11 +41,14 @@ class CardPassingView(discord.ui.View):
 
 class CardSelectionDropdown(discord.ui.Select):
     def __init__(self, hand):
-        # Create options for each card
+        self.hand = hand
+
+        # Create options for each card with emoji
         options = []
         for i, card in enumerate(hand):
+            card_display = format_card_emoji(card)
             options.append(discord.SelectOption(
-                label=f"{card}",
+                label=card_display,
                 value=str(i),
                 description=f"Card {i + 1}"
             ))
@@ -65,16 +70,38 @@ class CardSelectionDropdown(discord.ui.Select):
         # Store the selection
         view.selected_cards = selected_cards
 
-        # Add confirm button
+        # Update the dropdown to show selected state with emojis
+        selected_display = format_card_list(selected_cards, selected_cards=selected_cards)
+        self.placeholder = f"Selected: {selected_display}"
+
+        # Mark selected options
+        for option in self.options:
+            card_index = int(option.value)
+            card = view.hand[card_index]
+
+            if option.value in self.values:
+                option.label = format_card_emoji(card, is_selected=True)
+                option.description = "Selected"
+            else:
+                option.label = format_card_emoji(card)
+                option.description = f"Card {card_index + 1}"
+
+        # Add confirm button if not already present
         if not any(isinstance(item, ConfirmPassingButton) for item in view.children):
             view.add_item(ConfirmPassingButton())
 
-        # Update the interaction
-        card_names = ", ".join(str(card) for card in selected_cards)
-        await interaction.response.edit_message(
-            content=f"Selected cards: **{card_names}**\nClick Confirm to pass these cards.",
-            view=view
+        embed = discord.Embed(
+            title="Card Selection",
+            description=f"**Selected Cards:** {format_card_list(selected_cards)}",
+            color=discord.Color.orange()
         )
+        embed.add_field(
+            name="Instructions",
+            value="Click 'Confirm Pass' to finalize your selection, or use the dropdown to change your selection.",
+            inline=False
+        )
+
+        await interaction.response.edit_message(embed=embed, view=view)
 
 
 class ConfirmPassingButton(discord.ui.Button):
@@ -84,14 +111,25 @@ class ConfirmPassingButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         view = self.view
 
-        # Process the card passing
+        if not view.selected_cards or len(view.selected_cards) != 3:
+            await interaction.response.send_message("Please select exactly 3 cards first!", ephemeral=True)
+            return
+
         await view.game.process_card_passing(view.player, view.selected_cards)
 
-        # Disable the view
         for item in view.children:
             item.disabled = True
 
-        await interaction.response.edit_message(
-            content="Cards passed successfully! Waiting for other players...",
-            view=view
+        # Create final embed with emojis
+        embed = discord.Embed(
+            title="Cards Passed Successfully!",
+            description=f"You passed: {format_card_list(view.selected_cards)}",
+            color=discord.Color.green()
         )
+        embed.add_field(
+            name="Status",
+            value="Waiting for other players to finish passing...",
+            inline=False
+        )
+
+        await interaction.response.edit_message(embed=embed, view=view)
