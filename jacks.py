@@ -144,15 +144,18 @@ class Game:
             await self.prompt_current_player()
 
     async def complete_trick(self):
-        #complete trick and find winner
-        winning_player, winning_card = self.evaluate_trick()
+        # Complete the current trick and determine winner
         LOGGER.info(f"Completing trick with {len(self.current_trick)} cards")
+        winning_player, winning_card = self.evaluate_trick()
 
         LOGGER.info(f"{winning_player.name} won the trick with {winning_card}")
 
         # Add trick to winner's tricks
         trick_cards = [card for player, card in self.current_trick]
         winning_player.tricks.append(trick_cards)
+
+        # Announce winner to all players
+        await self.announce_trick_winner(winning_player, winning_card)
 
         # Clear current trick
         self.current_trick = []
@@ -304,6 +307,39 @@ class Game:
             await current_player.discord_user.send(embed=embed, view=card_play_view)
         except discord.Forbidden:
             LOGGER.warning(f"Could not DM {current_player.name} for card play")
+
+    async def announce_trick_winner(self, winning_player, winning_card):
+        # Announce the trick winner to all players
+        # Create trick summary
+        trick_text = []
+        for player, card in self.current_trick:
+            if player == winning_player:
+                trick_text.append(f"**{player.name}: {format_card_emoji(card)}** 🏆")
+            else:
+                trick_text.append(f"{player.name}: {format_card_emoji(card)}")
+
+        embed = discord.Embed(
+            title="Trick Complete!",
+            description=f"**{winning_player.name}** wins!",
+            color=discord.Color.gold()
+        )
+        embed.add_field(name="Cards Played", value="\n".join(trick_text), inline=False)
+
+        # Add current scores
+        score_text = []
+        for player in self.players:
+            tricks_this_hand = len(player.tricks)
+            score_text.append(f"**{player.name}:** {tricks_this_hand} tricks (Total: {player.score})")
+
+        embed.add_field(name="Current Scores", value="\n".join(score_text), inline=False)
+        embed.set_footer(text=f"Trump: {self.get_trump_emoji()}")
+
+        # Send to all players
+        for player in self.players:
+            try:
+                await player.discord_user.send(embed=embed)
+            except discord.Forbidden:
+                LOGGER.warning(f"Could not send trick result to {player.name}")
 
     async def start_passing_phase(self):
         LOGGER.info(f"Starting passing phase for {self.discord_players}")

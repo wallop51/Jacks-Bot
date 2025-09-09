@@ -189,7 +189,7 @@ class CardPlayDropdown(discord.ui.Select):
             description=f"You played: {format_card_emoji(selected_card)}",
             color=discord.Color.green()
         )
-        embed.add_field(name="Status", value="Waiting for other players...", inline=False)
+        embed.add_field(name="Status", value="Card played successfully!", inline=False)
 
         await interaction.response.edit_message(embed=embed, view=view)
 
