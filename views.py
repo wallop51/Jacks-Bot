@@ -195,6 +195,14 @@ class CardPlayDropdown(discord.ui.Select):
             description=f"You played: {format_card_emoji(selected_card)}",
             color=discord.Color.green()
         )
+
+        current_trick_with_new_card = view.game.current_trick + [(view.player, selected_card)]
+        if current_trick_with_new_card:
+            trick_text = []
+            for player, card in current_trick_with_new_card:
+                trick_text.append(f"{player.name}: {format_card_emoji(card)}")
+            embed.add_field(name="Current Trick", value="\n".join(trick_text), inline=False)
+
         embed.add_field(name="Status", value="Card played successfully!", inline=False)
 
         await interaction.response.edit_message(embed=embed, view=view)

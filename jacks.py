@@ -82,6 +82,7 @@ class Game:
         self.lead_player_index = 0  # Index of player who led the current trick
         self.game_phase = "passing"  # "passing", "playing", "finished"
         self.round_number = 1
+        self.last_trick_messages = {}
 
         self.deal_cards()
 
@@ -89,29 +90,61 @@ class Game:
         return SUIT_EMOJIS[SUITS[self.trump_index]]
 
     def get_current_player(self):
-        """Get the player whose turn it is"""
+        # Get the player whose turn it is
         return self.players[self.current_player_index]
 
     def get_trump_suit(self):
-        """Get the current trump suit name"""
+        # Get the current trump suit name
         return SUITS[self.trump_index]
 
     def is_trump(self, card):
-        """Check if a card is trump"""
+        # Check if a card is trump
         return card.suit == self.get_trump_suit()
 
     def get_lead_suit(self):
-        """Get the suit that was led this trick (None if no cards played)"""
+        # Get the suit that was led this trick (None if no cards played)
         if not self.current_trick:
             return None
         return self.current_trick[0][1].suit  # suit of first card played
 
     def can_follow_suit(self, player, lead_suit):
-        """Check if player has cards of the lead suit"""
+        # Check if player has cards of the lead suit
         return any(card.suit == lead_suit for card in player.hand)
 
+    async def hide_previous_trick_cards(self):
+        # Hide the cards from the previous trick announcement
+        for player, message in self.last_trick_messages.items():
+            if message:
+                try:
+                    # Create a new embed with hidden card details
+                    embed = discord.Embed(
+                        title="Trick Complete!",
+                        description="*(Cards hidden - new trick has started)*",
+                        color=discord.Color.greyple()
+                    )
+
+                    # Still show current scores
+                    score_text = []
+                    for p in self.players:
+                        tricks_this_hand = len(p.tricks)
+                        score_text.append(f"**{p.name}:** {tricks_this_hand} tricks (Total: {p.score})")
+
+                    embed.add_field(name="Current Scores", value="\n".join(score_text), inline=False)
+                    embed.set_footer(text=f"Trump: {self.get_trump_emoji()}")
+
+                    await message.edit(embed=embed)
+                except discord.NotFound:
+                    # Message was deleted, ignore
+                    pass
+                except discord.Forbidden:
+                    # No permission to edit, ignore
+                    pass
+
+        # Clear the stored messages
+        self.last_trick_messages = {}
+
     def get_valid_plays(self, player):
-        """Get list of cards the player can legally play"""
+        # Get list of cards the player can legally play
         if not self.current_trick:  # Leading the trick
             return player.hand.copy()
 
@@ -126,8 +159,11 @@ class Game:
         return player.hand.copy()
 
     async def play_card(self, player, card):
-        """Handle when a player plays a card"""
+        # Handle when a player plays a card
         LOGGER.info(f"{player.name} played {card}")
+
+        if len(self.current_trick) == 0 and self.last_trick_messages:
+            await self.hide_previous_trick_cards()
 
         # Remove card from player's hand
         player.hand.remove(card)
@@ -335,11 +371,14 @@ class Game:
         embed.set_footer(text=f"Trump: {self.get_trump_emoji()}")
 
         # Send to all players
+        self.last_trick_messages = {}
         for player in self.players:
             try:
-                await player.discord_user.send(embed=embed)
+                message = await player.discord_user.send(embed=embed)
+                self.last_trick_messages[player] = message
             except discord.Forbidden:
                 LOGGER.warning(f"Could not send trick result to {player.name}")
+                self.last_trick_messages[player] = None
 
     async def start_passing_phase(self):
         LOGGER.info(f"Starting passing phase for {self.discord_players}")
