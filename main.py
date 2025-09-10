@@ -48,6 +48,23 @@ async def on_message(message):
         return
     LOGGER.info(f"[{message.author}] {message.content}")
 
+@bot.tree.command(name="help")
+async def help(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="Help",
+        color=discord.Color.orange()
+    ).add_field(
+        name="Learn How to Play",
+        value="https://www.tiktok.com/@jacks.master/video/7079103590769478917",
+                inline=False
+    ).add_field(name="Commands",
+                value="**/jacks** - create a new lobby\n"
+                      "**/cancelgame** - close the lobby\n"
+                      "**/remove** `@user` - kick a player from the lobby\n"
+                      "**/leavegame** - leave a lobby\n"
+                      "**/ready** - start the game",
+                inline=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="jacks")
 async def create_lobby(interaction: discord.Interaction):
