@@ -42,14 +42,16 @@ class CardPassingView(discord.ui.View):
 class CardSelectionDropdown(discord.ui.Select):
     def __init__(self, hand):
         self.hand = hand
+        sorted_hand = sorted(hand)
 
         # Create options for each card with emoji
         options = []
         for i, card in enumerate(hand):
             card_display = format_card_emoji(card)
+            original_index = hand.index(card)
             options.append(discord.SelectOption(
                 label=card_display,
-                value=str(i),
+                value=str(original_index),
                 description=f"Card {i + 1}"
             ))
 
@@ -115,6 +117,10 @@ class ConfirmPassingButton(discord.ui.Button):
             await interaction.response.send_message("Please select exactly 3 cards first!", ephemeral=True)
             return
 
+        current_index = view.game.players.index(view.player)
+        next_index = (current_index + 1) % len(view.game.players)
+        recipient = view.game.players[next_index]
+
         await view.game.process_card_passing(view.player, view.selected_cards)
 
         for item in view.children:
@@ -123,7 +129,7 @@ class ConfirmPassingButton(discord.ui.Button):
         # Create final embed with emojis
         embed = discord.Embed(
             title="Cards Passed Successfully!",
-            description=f"You passed: {format_card_list(view.selected_cards)}",
+            description=f"You passed: {format_card_list(view.selected_cards)} to **{recipient.name}**",
             color=discord.Color.green()
         )
         embed.add_field(

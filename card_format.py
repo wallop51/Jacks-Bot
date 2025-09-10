@@ -12,7 +12,7 @@ def format_card_emoji(card, is_passed=False, is_selected=False):
     base_text = f"{card.rank}{emoji}"
 
     if is_selected:
-        return f"✓ **{base_text}**"  # Checkmark + bold for selected
+        return f"✓ {base_text}"  # Checkmark + bold for selected
     elif is_passed:
         return f"**{base_text}**"  # Bold for passed cards
     else:
