@@ -449,7 +449,7 @@ class Game:
                 description=hand_text,
                 color=discord.Color.green()
             )
-            embed.set_footer(text=f"Bold cards were passed to you by | Trump: {self.get_trump_emoji()}")
+            embed.set_footer(text=f"Bold cards were passed to you by {previous_player.name} | Trump: {self.get_trump_emoji()}")
 
             try:
                 await player.discord_user.send(embed=embed)

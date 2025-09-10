@@ -177,6 +177,9 @@ async def ready(interaction: discord.Interaction):
         await interaction.response.send_message("Jacks can only be played with 3 or 4 players.", ephemeral=True)
         return
 
+    if pregame.lobby_message:
+        await pregame.lobby_message.delete()
+
     await interaction.response.send_message(f"Game started! Check your DMs for your hand.")
 
     #Start game
