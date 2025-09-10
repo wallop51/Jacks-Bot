@@ -14,7 +14,7 @@ LOGGER = logging.getLogger(__name__)
 class Card:
     # Define the order for suits and ranks
     SUIT_ORDER = {'Hearts': 0, 'Clubs': 1, 'Diamonds': 2, 'Spades': 3}
-    RANK_ORDER = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8,
+    RANK_ORDER = {'3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8,
                   '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14}
 
     def __init__(self, suit, rank):
@@ -22,7 +22,7 @@ class Card:
         self.rank = rank
 
     def __repr__(self):
-        return f"{self.rank} of {self.suit}"
+        return f"{self.rank}{self.suit[0]}"  # e.g. "10H", "QS"
 
     def __lt__(self, other):
         # First compare by suit, then by rank
@@ -237,7 +237,7 @@ class Game:
         self.game_phase = "finished"
 
     async def send_hand_results(self):
-        """Send hand results to all players"""
+        # Send hand results to all players
         embed = discord.Embed(
             title=f"Hand {self.round_number} Complete!",
             color=discord.Color.blue()
@@ -265,7 +265,7 @@ class Game:
                 LOGGER.warning(f"Could not send results to {player.name}")
 
     def evaluate_trick(self):
-        """Determine who wins the current trick"""
+        # Determine who wins the current trick
         if len(self.current_trick) != len(self.players):
             return None  # Trick not complete
 
@@ -405,7 +405,7 @@ class Game:
             LOGGER.warning(f"Could not DM {player.name} for card passing")
 
     async def process_card_passing(self, player, cards_to_pass):
-        """Handle when a player passes their cards"""
+        # Handle when a player passes their cards
         # Remove cards from player's hand
         for card in cards_to_pass:
             player.hand.remove(card)
@@ -449,7 +449,7 @@ class Game:
                 description=hand_text,
                 color=discord.Color.green()
             )
-            embed.set_footer(text=f"Bold cards were passed to you | Trump: {self.get_trump_emoji()}")
+            embed.set_footer(text=f"Bold cards were passed to you by | Trump: {self.get_trump_emoji()}")
 
             try:
                 await player.discord_user.send(embed=embed)

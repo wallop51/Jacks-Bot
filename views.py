@@ -42,11 +42,10 @@ class CardPassingView(discord.ui.View):
 class CardSelectionDropdown(discord.ui.Select):
     def __init__(self, hand):
         self.hand = hand
-        sorted_hand = sorted(hand)
 
         # Create options for each card with emoji
         options = []
-        for i, card in enumerate(sorted_hand):
+        for i, card in enumerate(hand):
             card_display = format_card_emoji(card)
             original_index = hand.index(card)
             options.append(discord.SelectOption(
@@ -163,7 +162,7 @@ class CardPlayDropdown(discord.ui.Select):
 
         # Create options for each valid card
         options = []
-        for i, card in enumerate(valid_cards):
+        for i, card in enumerate(sorted(valid_cards)):
             card_display = format_card_emoji(card)
             options.append(discord.SelectOption(
                 label=card_display,
