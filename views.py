@@ -46,7 +46,7 @@ class CardSelectionDropdown(discord.ui.Select):
 
         # Create options for each card with emoji
         options = []
-        for i, card in enumerate(hand):
+        for i, card in enumerate(sorted_hand):
             card_display = format_card_emoji(card)
             original_index = hand.index(card)
             options.append(discord.SelectOption(
