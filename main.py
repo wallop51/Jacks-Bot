@@ -46,7 +46,7 @@ async def on_ready():
 async def on_message(message):
     if message.author == bot.user:
         return
-    LOGGER.info(f"[{message.author}] {message.content}")
+    LOGGER.info(f"[{message.author} in #{message.channel}] {message.content}")
 
 @bot.tree.command(name="help")
 async def help(interaction: discord.Interaction):
