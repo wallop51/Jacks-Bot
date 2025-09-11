@@ -476,6 +476,13 @@ class Game:
                 color=discord.Color.blue()
             )
 
+            value = ""
+
+            for i in self.players:
+                value = value + str(i.name) + "\n"
+
+            embed.add_field(name="Players",value=value)
+
             try:
                 await player.discord_user.send(embed=embed)
                 LOGGER.info(f"Sent hand to {player.name}")
