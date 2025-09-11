@@ -83,8 +83,52 @@ class Game:
         self.game_phase = "passing"  # "passing", "playing", "finished"
         self.round_number = 1
         self.last_trick_messages = {}
+        self.live_trick_messages = {}
 
         self.deal_cards()
+
+    async def send_live_trick_update(self):
+        # Send or update live trick status to all players
+        current_player = self.get_current_player()
+
+        # Send/update for each player
+        for player in self.players:
+            # Create a fresh embed for each player
+            embed = discord.Embed(
+                title="Current Trick",
+                color=discord.Color.blue()
+            )
+
+            # Show cards played so far
+            if self.current_trick:
+                trick_text = []
+                for p, card in self.current_trick:
+                    trick_text.append(f"{p.name}: {format_card_emoji(card)}")
+                embed.add_field(name="Cards Played", value="\n".join(trick_text), inline=False)
+
+            # Show who we're waiting on
+            embed.add_field(
+                name="Status",
+                value=f"Waiting for **{current_player.name}** to play",
+                inline=False
+            )
+
+            # Add this player's specific hand
+            hand_text = format_card_list(sorted(player.hand))
+            embed.add_field(name="Your Hand", value=hand_text, inline=False)
+            embed.set_footer(text=f"Trump: {self.get_trump_emoji()}")
+
+            try:
+                if player in self.live_trick_messages and self.live_trick_messages[player]:
+                    # Update existing message
+                    await self.live_trick_messages[player].edit(embed=embed)
+                else:
+                    # Send new message
+                    message = await player.discord_user.send(embed=embed)
+                    self.live_trick_messages[player] = message
+            except discord.Forbidden:
+                LOGGER.warning(f"Could not send/update live trick to {player.name}")
+                self.live_trick_messages[player] = None
 
     def get_trump_emoji(self):
         return SUIT_EMOJIS[SUITS[self.trump_index]]
@@ -171,13 +215,48 @@ class Game:
         # Add to current trick
         self.current_trick.append((player, card))
 
-        # Check if trick is complete
-        if len(self.current_trick) == len(self.players):
-            await self.complete_trick()
-        else:
-            # Move to next player
+        if len(self.current_trick) < len(self.players):
+            # Trick not complete - show who's next
             self.current_player_index = (self.current_player_index + 1) % len(self.players)
-            await self.prompt_current_player()
+            await self.send_live_trick_update()
+            await self.prompt_current_player(False)
+        else:
+            # Trick complete - show final state before completing
+            await self.send_final_trick_update()
+            await self.complete_trick()
+
+    async def send_final_trick_update(self):
+        # Send final trick update showing all cards before trick completion
+        # Update for each player
+        for player in self.players:
+            # Create fresh embed for each player
+            embed = discord.Embed(
+                title="Trick Complete!",
+                color=discord.Color.gold()
+            )
+
+            # Show all cards played
+            trick_text = []
+            for p, card in self.current_trick:
+                trick_text.append(f"{p.name}: {format_card_emoji(card)}")
+            embed.add_field(name="Cards Played", value="\n".join(trick_text), inline=False)
+
+            embed.add_field(name="Status", value="Determining winner...", inline=False)
+
+            # Add this player's specific hand
+            hand_text = format_card_list(sorted(player.hand))
+            embed.add_field(name="Your Hand", value=hand_text, inline=False)
+            embed.set_footer(text=f"Trump: {self.get_trump_emoji()}")
+
+            try:
+                if player in self.live_trick_messages and self.live_trick_messages[player]:
+                    await self.live_trick_messages[player].edit(embed=embed)
+                else:
+                    # Send new message if somehow we don't have one
+                    message = await player.discord_user.send(embed=embed)
+                    self.live_trick_messages[player] = message
+            except discord.Forbidden:
+                LOGGER.warning(f"Could not update final trick for {player.name}")
 
     async def complete_trick(self):
         # Complete the current trick and determine winner
@@ -189,6 +268,22 @@ class Game:
         # Add trick to winner's tricks
         trick_cards = [card for player, card in self.current_trick]
         winning_player.tricks.append(trick_cards)
+
+        # Delete live trick messages
+        LOGGER.info(f"Attempting to delete {len(self.live_trick_messages)} live trick messages")
+        for player, message in self.live_trick_messages.items():
+            if message:
+                try:
+                    await message.delete()
+                except discord.NotFound:
+                    LOGGER.info(f"Message for {player.name} already deleted")
+                except discord.Forbidden:
+                    LOGGER.warning(f"No permission to delete message for {player.name}")
+                except Exception as e:
+                    LOGGER.error(f"Error deleting message for {player.name}: {e}")
+            else:
+                LOGGER.info(f"No message stored for {player.name}")
+        self.live_trick_messages = {}
 
         # Announce winner to all players
         await self.announce_trick_winner(winning_player, winning_card)
@@ -205,7 +300,7 @@ class Game:
             await self.complete_hand()
         else:
             # Start next trick
-            await self.prompt_current_player()
+            await self.prompt_current_player(True)
 
     async def complete_hand(self):
         # Complete the current hand and calculate scores
@@ -306,9 +401,9 @@ class Game:
         self.lead_player_index = 0
 
         LOGGER.info(f"Starting playing phase. {self.get_current_player().name} leads.")
-        await self.prompt_current_player()
+        await self.prompt_current_player(True)
 
-    async def prompt_current_player(self):
+    async def prompt_current_player(self, is_leading):
         # Send the current player their hand and ask them to play a card
         current_player = self.get_current_player()
         LOGGER.info(f"Prompting {current_player.name} to play (trick has {len(self.current_trick)} cards)")
@@ -320,16 +415,10 @@ class Game:
             color=discord.Color.gold()
         )
 
-        # Show current trick if any cards played
-        if self.current_trick:
-            trick_text = []
-            for player, card in self.current_trick:
-                trick_text.append(f"{player.name}: {format_card_emoji(card)}")
-            embed.add_field(name="Current Trick", value="\n".join(trick_text), inline=False)
-
-        # Show their hand
-        hand_text = format_card_list(sorted(current_player.hand))
-        embed.add_field(name="Your Hand", value=hand_text, inline=False)
+        # Show their hand only if leading out
+        if is_leading:
+            hand_text = format_card_list(sorted(current_player.hand))
+            embed.add_field(name="Your Hand", value=hand_text, inline=False)
 
         # Show valid plays if restricted
         if len(valid_cards) < len(current_player.hand):
@@ -476,10 +565,10 @@ class Game:
                 color=discord.Color.blue()
             )
 
+            # Make player list
             value = ""
-
-            for i in self.players:
-                value = value + str(i.name) + "\n"
+            for i, j in enumerate(self.players, start=1):
+                value = f"{value}{i}. {j.name}\n"
 
             embed.add_field(name="Players",value=value)
 

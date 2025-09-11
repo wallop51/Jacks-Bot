@@ -189,21 +189,17 @@ class CardPlayDropdown(discord.ui.Select):
         for item in view.children:
             item.disabled = True
 
-        # Show confirmation
-        embed = discord.Embed(
-            title="Card Played!",
-            description=f"You played: {format_card_emoji(selected_card)}",
-            color=discord.Color.green()
+        await interaction.response.edit_message(
+            content=f"Playing {format_card_emoji(selected_card)}...",
+            embed=None,
+            view=view
         )
 
-        current_trick_with_new_card = view.game.current_trick + [(view.player, selected_card)]
-        if current_trick_with_new_card:
-            trick_text = []
-            for player, card in current_trick_with_new_card:
-                trick_text.append(f"{player.name}: {format_card_emoji(card)}")
-            embed.add_field(name="Current Trick", value="\n".join(trick_text), inline=False)
-
-        await interaction.response.edit_message(embed=embed, view=view)
+        # Delete this message after a short delay
+        try:
+            await interaction.delete_original_response()
+        except:
+            pass
 
         # Process the card play
         await view.game.play_card(view.player, selected_card)
