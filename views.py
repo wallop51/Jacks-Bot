@@ -158,11 +158,11 @@ class CardPlayView(discord.ui.View):
 
 class CardPlayDropdown(discord.ui.Select):
     def __init__(self, valid_cards):
-        self.valid_cards = valid_cards
+        self.valid_cards = sorted(valid_cards)
 
         # Create options for each valid card
         options = []
-        for i, card in enumerate(sorted(valid_cards)):
+        for i, card in enumerate(self.valid_cards):
             card_display = format_card_emoji(card)
             options.append(discord.SelectOption(
                 label=card_display,
@@ -179,10 +179,11 @@ class CardPlayDropdown(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         view = self.view
+        valid_sorted_cards = sorted(view.valid_cards)
 
         # Get selected card
         selected_index = int(self.values[0])
-        selected_card = view.valid_cards[selected_index]
+        selected_card = valid_sorted_cards[selected_index]
 
         # Disable the view immediately to prevent double-plays
         for item in view.children:
@@ -201,8 +202,6 @@ class CardPlayDropdown(discord.ui.Select):
             for player, card in current_trick_with_new_card:
                 trick_text.append(f"{player.name}: {format_card_emoji(card)}")
             embed.add_field(name="Current Trick", value="\n".join(trick_text), inline=False)
-
-        embed.add_field(name="Status", value="Card played successfully!", inline=False)
 
         await interaction.response.edit_message(embed=embed, view=view)
 

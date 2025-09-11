@@ -208,7 +208,7 @@ class Game:
             await self.prompt_current_player()
 
     async def complete_hand(self):
-        """Complete the current hand and calculate scores"""
+        # Complete the current hand and calculate scores
         LOGGER.info("Hand complete! Calculating scores...")
 
         # Calculate scores for this hand
